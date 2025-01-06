@@ -27,8 +27,8 @@ WBF=-L/usr/share/winlibs/ -I/usr/share/winincludes/
 WAF=-l:glfw.a -lgdi32 -lssp -lvulkan
 
 # Generative definitions
-CFILES=$(wildcard $(SOURCE)/*.c)
-OFILES=$(CFILES:$(SOURCE)/%.c=%.o)
+CFILES=$(shell find $(SOURCE) -name "*.c")
+OBJECTS=$(CFILES:$(SOURCE)/%.c=%.o)
 
 WINTARGET=$(OUTPUT)/$(WINOUTPUT)
 LINTARGET=$(OUTPUT)/$(LINOUTPUT)
@@ -38,14 +38,14 @@ LINDEBUGTARGET=$(OUTPUT)/$(DEBUGOUTPUT)/$(LINOUTPUT)
 # Processes
 .PHONY: test linux windows clean
 
-test: $(OFILES:%=$(LINDEBUGTARGET)/%)
+test: $(OBJECTS:%=$(LINDEBUGTARGET)/%)
 	$(LCC) $^ -o $(APP) $(LAF)
 	./$(APP)
 
-linux: $(OFILES:%=$(LINTARGET)/%)
+linux: $(OBJECTS:%=$(LINTARGET)/%)
 	$(LCC) $^ -o $(APP) $(LAF)
 
-windows: $(OFILES:%=$(WINTARGET)/%)
+windows: $(OBJECTS:%=$(WINTARGET)/%)
 	$(WCC) $(WBF) $^ -o $(APP).exe $(WAF)
 
 clean:
@@ -58,7 +58,7 @@ $(LINTARGET)/%.o: $(SOURCE)/%.c
 	$(LCC) $< -c -o $@
 
 $(LINDEBUGTARGET)/%.o: $(SOURCE)/%.c
-	mkdir -p $(LINDEBUGTARGET)
+	mkdir -p $(dir $@)
 	$(LCC) -DDEBUG $< -c -o $@
 
 $(WINTARGET)/%.o: $(SOURCE)/%.c

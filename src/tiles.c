@@ -1,12 +1,13 @@
-
-#include<vulkan/vulkan.h>
-#include<GLFW/glfw3.h>
+/* Includes. */
+#include<limits.h>
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
 
-/* Definitions. */
+#include<vulkan/vulkan.h>
+#include<GLFW/glfw3.h>
 
+/* Definitions. */
 #define WINDOW_DEFAULT_WIDTH 800
 #define WINDOW_DEFAULT_HEIGHT 600
 #define WINDOW_TITLE "Tiles"
@@ -89,6 +90,9 @@ initVulkan()
 		int32_t queue_map;
 		uint32_t graphics_queue;
 		uint32_t presentation_queue;
+		VkSurfaceFormatKHR format;
+		VkPresentModeKHR present_mode;
+		VkExtent2D extent;
 	} selected_device = {
 		.index = -1
 	};
@@ -168,10 +172,26 @@ initVulkan()
 		vkGetPhysicalDeviceSurfacePresentModesKHR(devices[i], v.surface, &present_mode_count,
 				present_modes);
 
-		free(formats);
-		free(present_modes);
 		if (!format_count || !present_mode_count)
 			continue;
+		VkSurfaceFormatKHR format = formats[0];
+		for (int32_t i = 0; i < format_count; ++i) {
+			if (formats[i].format == VK_FORMAT_B8G8R8A8_SRGB
+					&& formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+				format = formats[i];
+				break;
+			}
+		}
+		free(formats);
+
+		VkPresentModeKHR present_mode = present_modes[0];
+		for (int32_t i = 0; i < present_mode_count; ++i) {
+			if (present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
+				present_mode = present_modes[i];
+			}
+		}
+		free(present_modes);
+
 		
 
 		// Rating
@@ -180,8 +200,9 @@ initVulkan()
 		VkPhysicalDeviceProperties device_properties;
 		vkGetPhysicalDeviceProperties(devices[i], &device_properties);
 
-		int score =
-			300 * (device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU);
+		int32_t score =
+			300 * (device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+			+ 100 * (present_mode == VK_PRESENT_MODE_MAILBOX_KHR);
 
 
 		if (score > selected_device.score) {
@@ -190,6 +211,15 @@ initVulkan()
 			selected_device.queue_map = queue_map;
 			selected_device.graphics_queue = graphics_queue;
 			selected_device.presentation_queue = presentation_queue;
+			selected_device.format = format;
+			selected_device.present_mode = present_mode;
+			if (capabilities.currentExtent.width != UINT_MAX) {
+				selected_device.extent = capabilities.currentExtent;
+			} else {
+				glfwGetFramebufferSize(v.window,
+						&selected_device.extent.width,
+						&selected_device.extent.height);
+			}
 		}
 	}
 	if (selected_device.index == -1) {
